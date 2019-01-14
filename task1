@@ -1,0 +1,14 @@
+select sum(one)/count(distinct(month,year)),sum(two)/count(distinct(month,year)),sum(three)/count(distinct(month,year))
+from (select sum(case when 18<age<=25 then price else 0) as one,sum(case when 26<age<=35 then price else 0) as two, sum(price) as three,month(date) as month, year(date) as year
+from Users a
+join Purchases b on a.userId=b.userId
+join Items c on c.itemId=b.itemId
+group by month(date),year(date) )
+         
+
+
+
+
+
+
+
