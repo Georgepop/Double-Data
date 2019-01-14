@@ -1,0 +1,119 @@
+import time
+import re
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+browser = webdriver.Chrome('C:/Users/User/Desktop/chromedriver.exe')
+from selenium.common.exceptions import NoSuchElementException        
+
+
+def normalize_text(text):
+
+    text=str(text).lower()
+
+    #text=''.join([x.lower() for x in text if type(x) is str])
+
+    text = re.sub('((www\.[^\s]+)|(https?://[^\s]+)|(pic\.twitter\.com/[^\s]+))','', text)
+    text = re.sub('@[^\s]+','', text)
+    text = re.sub('#([^\s]+)', '', text)
+    text = re.sub('[:;>?<=*+()&,\-#!$%\{˜|\}\[^_\\@\]1234567890’‘]',' ', text)
+    text = re.sub('[\d]','', text)
+    text = text.replace(".", '')
+    text = text.replace("'", '')
+    text = text.replace("`", '')
+    text = text.replace("'s", '')
+    text = text.replace("/", ' ')
+    text = text.replace("\"", ' ')
+    text = text.replace("\\", '')
+    re.sub(' +', ' ', text)
+    text=text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+    #normalize some utf8 encoding
+    text = text.replace("\x9d",'').replace("\x8c",'')
+    text = text.replace("\xa0",'')
+    text = text.replace("\x9d\x92", '').replace("\x9a\xaa\xf0\x9f\x94\xb5", '').replace("\xf0\x9f\x91\x8d\x87\xba\xf0\x9f\x87\xb8", '').replace("\x9f",'').replace("\x91\x8d",'')
+    text = text.replace("\xf0\x9f\x87\xba\xf0\x9f\x87\xb8",'').replace("\xf0",'').replace('\xf0x9f','').replace("\x9f\x91\x8d",'').replace("\x87\xba\x87\xb8",'')
+    text = text.replace("\xe2\x80\x94",'').replace("\x9d\xa4",'').replace("\x96\x91",'').replace("\xe1\x91\xac\xc9\x8c\xce\x90\xc8\xbb\xef\xbb\x89\xd4\xbc\xef\xbb\x89\xc5\xa0\xc5\xa0\xc2\xb8",'')
+    text = text.replace("\xe2\x80\x99s", "").replace("\xe2\x80\x98", '').replace("\xe2\x80\x99", '').replace("\xe2\x80\x9c", "").replace("\xe2\x80\x9d", "")
+    text = text.replace("\xe2\x82\xac", "").replace("\xc2\xa3", "").replace("\xc2\xa0", "").replace("\xc2\xab", "").replace("\xf0\x9f\x94\xb4", "").replace("\xf0\x9f\x87\xba\xf0\x9f\x87\xb8\xf0\x9f", "")
+    text =  re.sub(r"\b[a-z]\b", "", text)
+    text=re.sub( '\s+', ' ', text).strip()
+
+    text=re.sub(r'\.+', ".", text)
+    text=re.sub(r'\.\.+', ' ', text).replace('.', '')
+    # Replace multiple dots with space
+    text = re.sub('\.\.+', ' ', text)
+    # Remove single dots
+    text = re.sub('\.', '', text)
+    text = re.sub(r'\.{2,}', ' ', text)
+    text = re.sub(r'\.{1}', '', text)
+
+    return text
+
+def check_exists_by_xpath(xpath):
+    try:
+        browser.find_element_by_xpath(xpath)
+    except NoSuchElementException:
+        return False
+    return True
+
+url='https://news.google.com/topics/CAAqIQgKIhtDQkFTRGdvSUwyMHZNRFppYm5vU0FtVnVLQUFQAQ?hl=en-US&gl=US&ceid=US%3Aen'
+
+browser.get(url)
+time.sleep(1)
+
+news=[]
+i=1
+while True:
+
+    ss='//*[@id="yDmH0d"]/c-wiz/div/c-wiz/div/div[2]/div/main/c-wiz/div[1]/div['+str(i)+']/div/article//div[1]/div/h3/a'
+    
+    if check_exists_by_xpath(ss):
+
+        news+=[browser.find_element_by_xpath(ss).text]
+    else:
+        break
+    i+=1
+          
+    
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+lem=WordNetLemmatizer().lemmatize
+from nltk.stem import PorterStemmer
+ps=PorterStemmer()
+from nltk.stem.snowball import SnowballStemmer
+stemmer = SnowballStemmer("russian")
+stopwr=stopwords.words('russian')
+stopwe = stopwords.words('english')
+import itertools
+
+def tex_tok(a):
+    a=normalize_text(a)
+    tokens=word_tokenize(a)
+    tokens=[lem(word) for word in tokens]
+    tokens=[stemmer.stem(word) for word in tokens]
+    tokens=[ps.stem(word) for word in tokens]
+    tokens=[tok for tok in tokens if tok not in stopwr]
+    tokens=[tok for tok in tokens if tok not in stopwe]
+    return tokens
+
+newsall=[tex_tok(text) for text in news]
+newsall = list(itertools.chain(*newsall))
+new=pd.DataFrame(newsall)[0].value_counts().iloc[:50].index.tolist()
+
+
+import os
+
+from os import path
+from wordcloud import WordCloud
+
+
+text=' '.join(new)
+wordcloud = WordCloud().generate(text)
+
+
+wordcloud = WordCloud(max_font_size=40).generate(text)
+plt.figure()
+plt.imshow(wordcloud, interpolation="bilinear")
+plt.axis("off")
+plt.show()
+
